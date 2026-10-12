@@ -35,10 +35,14 @@ services:
     plan: free
     healthCheckPath: /health/live
     envVars:
+      # Connection string nhập tay trong dashboard (hoclieu-api → Environment,
+      # đánh dấu Secret, copy từ trang hoclieu-db → Internal Database URL).
+      # sync: false: blueprint KHÔNG động vào key này khi update — giá trị
+      # dashboard luôn hiệu lực (fromDatabase trước đó resolve rỗng lúc DB
+      # chưa provision xong và cứ đè ngược giá trị dashboard khi sync).
       - key: ConnectionStrings__Default
-        fromDatabase:
-          name: hoclieu-db
-          property: connectionString
+        sync: false
+        value: "postgresql://CHU_A_NHAP_TAI_DASHBOARD/hoclieu_db"
       - key: Db__MigrateOnStartup
         value: "true"
       - key: Auth__GoogleClientId

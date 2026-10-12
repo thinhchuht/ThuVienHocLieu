@@ -57,6 +57,15 @@ builder.Host.UseSerilog();
 var config = builder.Configuration;
 var connectionString = config.GetConnectionString("Default")
     ?? "Host=localhost;Database=hoclieu;Username=hoclieu;Password=hoclieu";
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    // Key có tồn tại nhưng rỗng (Render: chưa nhập giá trị trong dashboard).
+    // Rỗng thì retry bao nhiêu lần cũng vô nghĩa → báo rõ + thoát ngay.
+    Log.Error(
+        "ConnectionStrings:Default rỗng — vào Render: hoclieu-api → Environment → " +
+        "nhập Internal Database URL (copy từ trang hoclieu-db), đánh dấu Secret, Save, rồi deploy lại.");
+    Environment.Exit(1);
+}
 
 // ===== Data =====
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());

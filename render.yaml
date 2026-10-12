@@ -18,6 +18,12 @@ services:
     dockerfilePath: ./apps/web/Dockerfile
     dockerContext: ./apps/web
     plan: free
+    # Xác nhận deploy bằng HTTP thay vì port scan "mù": có lần deploy báo
+    # "Port scan timeout reached, no open ports detected" trong khi log Caddy
+    # cho thấy đã listen $PORT chỉ ~2ms sau khi start (flake phía Render free
+    # tier). GET / → index.html → 200. Không dùng /health/live vì route đó
+    # proxy sang API — API sập sẽ chặn luôn deploy web.
+    healthCheckPath: /
     # Client ID Google cho nút đăng nhập — FE bake vào bundle lúc build.
     # Đổi OAuth client trong Google Cloud Console → sửa giá trị này
     # (+ Auth__GoogleClientId bên dưới cho khớp), không cần sửa code.

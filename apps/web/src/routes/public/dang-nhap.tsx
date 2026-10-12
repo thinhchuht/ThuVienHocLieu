@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import type { CredentialResponse } from "@react-oauth/google";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { useLogin, useLoginPassword, useMe } from "@/features/auth/api";
 import { isInAppBrowser } from "@/lib/inapp-browser";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 /**
  * §3.1: đăng nhập Google. Sau đăng nhập:
  * Active/Admin → `from` (mặc định /gv) · Pending → /cho-duyet.
- * Webview in-app (Zalo/FB): Google chặn đăng nhập → hướng dẫn mở bằng Chrome/Safari.
+ * Webview in-app (Zalo/FB): không hỗ trợ đăng nhập → chỉ hiện hướng dẫn
+ * mở bằng trình duyệt + sao chép link (không hiện form đăng nhập).
  */
 export function DangNhapPage() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export function DangNhapPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const inApp = isInAppBrowser();
 
   // Đã đăng nhập → về đúng chỗ (không cần bấm lại nút Google)
   if (me) {
@@ -71,119 +73,125 @@ export function DangNhapPage() {
             Đăng nhập Học Liệu
           </h1>
           <p className="text-sm text-muted">
-            Dùng tài khoản Google, hoặc email + mật khẩu
+            {inApp
+              ? "Bạn đang mở trong ứng dụng (Zalo/Facebook) — đăng nhập cần trình duyệt"
+              : "Dùng tài khoản Google, hoặc email + mật khẩu"}
           </p>
         </div>
 
-        {isInAppBrowser() ? (
+        {inApp ? (
           <InAppGuide />
-        ) : import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
-          <div className="flex flex-col gap-3">
-            <GoogleLogin
-              onSuccess={(r: CredentialResponse) =>
-                r.credential
-                  ? onCredential(r.credential)
-                  : setError("Google không phản hồi.")
-              }
-              onError={() =>
-                setError(
-                  "Google không phản hồi. Thử lại hoặc dùng trình duyệt khác.",
-                )
-              }
-              width={300}
-            />
-            {login.isPending && (
-              <p className="flex items-center justify-center gap-2 text-sm text-muted">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                Đang xác thực…
+        ) : (
+          <>
+            {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+              <div className="flex flex-col gap-3">
+                <GoogleLogin
+                  onSuccess={(r: CredentialResponse) =>
+                    r.credential
+                      ? onCredential(r.credential)
+                      : setError("Google không phản hồi.")
+                  }
+                  onError={() =>
+                    setError(
+                      "Google không phản hồi. Thử lại hoặc dùng trình duyệt khác.",
+                    )
+                  }
+                  width={300}
+                />
+                {login.isPending && (
+                  <p className="flex items-center justify-center gap-2 text-sm text-muted">
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    Đang xác thực…
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="rounded-btn border border-warn/40 bg-warn/10 p-3 text-sm text-ink">
+                Chưa cấu hình{" "}
+                <code className="font-mono text-xs">VITE_GOOGLE_CLIENT_ID</code>{" "}
+                cho frontend — không hiển thị được nút đăng nhập Google.
               </p>
             )}
-          </div>
-        ) : (
-          <p className="rounded-btn border border-warn/40 bg-warn/10 p-3 text-sm text-ink">
-            Chưa cấu hình{" "}
-            <code className="font-mono text-xs">VITE_GOOGLE_CLIENT_ID</code> cho
-            frontend — không hiển thị được nút đăng nhập Google.
-          </p>
-        )}
 
-        <div className="my-4 flex items-center gap-3" aria-hidden>
-          <span className="h-px flex-1 bg-grid" />
-          <span className="text-xs text-muted">hoặc</span>
-          <span className="h-px flex-1 bg-grid" />
-        </div>
-
-        <form onSubmit={submitPassword} className="flex flex-col gap-3">
-          <label className="block text-sm">
-            <span className="mb-1 block text-left text-xs font-medium text-muted">
-              Email
-            </span>
-            <input
-              type="email"
-              name="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-btn border border-grid bg-white px-3 py-2 text-sm outline-none transition focus:border-violet focus:ring-2 focus:ring-violet/20"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-left text-xs font-medium text-muted">
-              Mật khẩu
-            </span>
-            <input
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-btn border border-grid bg-white px-3 py-2 text-sm outline-none transition focus:border-violet focus:ring-2 focus:ring-violet/20"
-            />
-          </label>
-          <Button type="submit" disabled={loginPassword.isPending}>
-            {loginPassword.isPending && (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            )}
-            Đăng nhập
-          </Button>
-        </form>
-
-        {import.meta.env.DEV && (
-          <div className="mt-4 rounded-btn border border-dashed border-grid p-3">
-            <p className="mb-2 text-xs font-medium text-muted">
-              Dev — đăng nhập nhanh (không cần Google)
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="flex-1"
-                disabled={login.isPending}
-                onClick={() =>
-                  onCredential(
-                    "devfake:e2e-e2eadminhoclieudev:e2e-admin@hoclieu.dev:Admin E2E",
-                  )
-                }
-              >
-                Admin
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="flex-1"
-                disabled={login.isPending}
-                onClick={() =>
-                  onCredential(
-                    "devfake:e2e-e2eteacherhoclieudev:e2e-teacher@hoclieu.dev:GV E2E",
-                  )
-                }
-              >
-                Giáo viên
-              </Button>
+            <div className="my-4 flex items-center gap-3" aria-hidden>
+              <span className="h-px flex-1 bg-grid" />
+              <span className="text-xs text-muted">hoặc</span>
+              <span className="h-px flex-1 bg-grid" />
             </div>
-          </div>
+
+            <form onSubmit={submitPassword} className="flex flex-col gap-3">
+              <label className="block text-sm">
+                <span className="mb-1 block text-left text-xs font-medium text-muted">
+                  Email
+                </span>
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-btn border border-grid bg-white px-3 py-2 text-sm outline-none transition focus:border-violet focus:ring-2 focus:ring-violet/20"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-left text-xs font-medium text-muted">
+                  Mật khẩu
+                </span>
+                <input
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-btn border border-grid bg-white px-3 py-2 text-sm outline-none transition focus:border-violet focus:ring-2 focus:ring-violet/20"
+                />
+              </label>
+              <Button type="submit" disabled={loginPassword.isPending}>
+                {loginPassword.isPending && (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                )}
+                Đăng nhập
+              </Button>
+            </form>
+
+            {import.meta.env.DEV && (
+              <div className="mt-4 rounded-btn border border-dashed border-grid p-3">
+                <p className="mb-2 text-xs font-medium text-muted">
+                  Dev — đăng nhập nhanh (không cần Google)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    disabled={login.isPending}
+                    onClick={() =>
+                      onCredential(
+                        "devfake:e2e-e2eadminhoclieudev:e2e-admin@hoclieu.dev:Admin E2E",
+                      )
+                    }
+                  >
+                    Admin
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    disabled={login.isPending}
+                    onClick={() =>
+                      onCredential(
+                        "devfake:e2e-e2eteacherhoclieudev:e2e-teacher@hoclieu.dev:GV E2E",
+                      )
+                    }
+                  >
+                    Giáo viên
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {error && (
@@ -225,13 +233,23 @@ function RedirectHint({ dest }: { dest: string }) {
   );
 }
 
-/** §3.1: hướng dẫn khi mở trong webview Zalo/Facebook (Google chặn đăng nhập). */
+/**
+ * §3.1: webview Zalo/Facebook không hỗ trợ đăng nhập. Không thể "đẩy" ra
+ * trình duyệt từ code web (giới hạn phía app chứa webview) → nút
+ * "Mở bằng trình duyệt" là best-effort `window.open` (thường hiệu lực trên
+ * Android); nút sao chép link làm phương án dự phòng (bắt buộc trên iOS).
+ */
 function InAppGuide() {
   const [copied, setCopied] = useState(false);
+  const url = window.location.origin + "/dang-nhap";
+
+  function openInBrowser() {
+    window.open(url, "_blank", "noopener");
+  }
 
   function copyLink() {
     navigator.clipboard
-      ?.writeText(window.location.origin + "/dang-nhap")
+      ?.writeText(url)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -242,15 +260,23 @@ function InAppGuide() {
   return (
     <div className={cn("rounded-btn border border-violet/30 bg-violet/5 p-4")}>
       <p className="text-sm font-medium text-ink">
-        Đang mở trong ứng dụng (Zalo/Facebook)?
+        Không hỗ trợ đăng nhập trong Zalo/Facebook
       </p>
       <p className="mt-1 text-sm text-muted">
-        Google không cho đăng nhập trong ứng dụng. Hãy mở trang đăng nhập bằng
-        trình duyệt Chrome hoặc Safari, hoặc sao chép liên kết bên dưới:
+        Hãy mở trang đăng nhập bằng trình duyệt Chrome hoặc Safari. Nếu nút bên
+        dưới không mở được, hãy sao chép liên kết và dán vào trình duyệt:
       </p>
-      <div className="mt-3 flex items-center gap-2">
+      <Button
+        className="mt-3 w-full"
+        onClick={openInBrowser}
+        aria-label="Mở trang đăng nhập bằng trình duyệt"
+      >
+        <ExternalLink className="size-4" aria-hidden />
+        Mở bằng trình duyệt
+      </Button>
+      <div className="mt-2 flex items-center gap-2">
         <code className="min-w-0 flex-1 truncate rounded-btn bg-white px-2 py-1 text-xs text-ink">
-          {window.location.origin}/dang-nhap
+          {url}
         </code>
         <Button variant="secondary" size="sm" onClick={copyLink}>
           {copied ? (

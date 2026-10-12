@@ -55,8 +55,11 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 var config = builder.Configuration;
-var connectionString = config.GetConnectionString("Default")
-    ?? "Host=localhost;Database=hoclieu;Username=hoclieu;Password=hoclieu";
+// Internal Database URL của Render là URI postgresql://... — Npgsql không hiểu
+// dạng URI (npgsql/npgsql#3461) → chuyển về Host=...;Database=... trước.
+var connectionString = ConnectionString.ToNpgsqlFormat(
+    config.GetConnectionString("Default")
+        ?? "Host=localhost;Database=hoclieu;Username=hoclieu;Password=hoclieu");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     // Key có tồn tại nhưng rỗng (Render: chưa nhập giá trị trong dashboard).

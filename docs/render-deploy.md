@@ -20,7 +20,7 @@ Render thay thế cấu hình 1-VM docker compose (spec §15.1). Toàn bộ repo
 ## 2. Chuẩn bị (trước khi bấm deploy)
 
 1. **Cloudinary — bắt buộc.** Render không có ổ đĩa bền cho Docker service nên lưu file local (`Storage__LocalRoot`) không dùng được. Lấy `cloudinary://KEY:SECRET@CLOUD_NAME` tại Cloudinary → Console → Setup. Bật **"Allow delivery of PDF and ZIP files"** (Security) — spec §15.3.
-2. **Google Cloud Console** → OAuth client: thêm **`https://hoclieu-web.onrender.com`** vào _Authorized JavaScript origins_ (cùng client ID đang dùng dev — đã đặt sẵn trong `render.yaml` và `apps/web/Dockerfile`).
+2. **Google Cloud Console** → OAuth client: _Authorized JavaScript origins_ phải chứa **`https://hoclieu-web.onrender.com`** (+ `http://localhost:5173` cho dev) — thiếu origin của web thì GSI báo `origin_mismatch`. Đổi OAuth client → sửa `buildArgs.VITE_GOOGLE_CLIENT_ID` của `hoclieu-web` và `Auth__GoogleClientId` của `hoclieu-api` trong `render.yaml` (hai giá trị phải giống nhau — BE đối chiếu audience ID token với nó); không cần sửa code.
 3. **Email Admin** — `Auth__AdminEmails` đã đặt là `thinhld2249@gmail.com` trong `render.yaml`; đăng nhập Google lần đầu bằng email đó sẽ thành Admin. Đổi nếu cần.
 
 ## 3. Tạo blueprint

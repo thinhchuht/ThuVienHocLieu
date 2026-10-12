@@ -18,6 +18,12 @@ services:
     dockerfilePath: ./apps/web/Dockerfile
     dockerContext: ./apps/web
     plan: free
+    # Client ID Google cho nút đăng nhập — FE bake vào bundle lúc build.
+    # Đổi OAuth client trong Google Cloud Console → sửa giá trị này
+    # (+ Auth__GoogleClientId bên dưới cho khớp), không cần sửa code.
+    buildArgs:
+      - key: VITE_GOOGLE_CLIENT_ID
+        value: "795347854507-b91gdgji9etht4qtptgt5oj8phbbm33r.apps.googleusercontent.com"
     envVars:
       # Render LB xử lý TLS ở mép → Caddy phục vụ HTTP thường trên port Render
       # inject ($PORT, mặc định 10000). SITE_DOMAIN = domain trần (không port)
@@ -45,8 +51,9 @@ services:
         value: "postgresql://CHU_A_NHAP_TAI_DASHBOARD/hoclieu_db"
       - key: Db__MigrateOnStartup
         value: "true"
+      # PHẢI khớp VITE_GOOGLE_CLIENT_ID bên trên (BE đối chiếu audience ID token).
       - key: Auth__GoogleClientId
-        value: "795347854507-jv3nqlosef2fkangcs4var5shu4pgq75.apps.googleusercontent.com"
+        value: "795347854507-b91gdgji9etht4qtptgt5oj8phbbm33r.apps.googleusercontent.com"
       # Đăng nhập lần đầu bằng email này sẽ thành Admin (bắt buộc phải đúng email thật).
       - key: Auth__AdminEmails
         value: "thinhld2249@gmail.com"

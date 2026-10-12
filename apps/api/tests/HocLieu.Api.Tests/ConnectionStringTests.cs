@@ -67,4 +67,24 @@ public class ConnectionStringTests
     {
         ConnectionString.ToNpgsqlFormat(cs).ShouldBe(cs);
     }
+
+    [Fact]
+    public void WithSslMode_Require_DatVaoChuoi_KeDuLich()
+    {
+        var result = ConnectionString.WithSslMode(
+            "Host=localhost;Database=hoclieu;Username=hoclieu;Password=hoclieu",
+            "Require");
+
+        var parsed = new NpgsqlConnectionStringBuilder(result);
+        parsed.SslMode.ShouldBe(SslMode.Require);
+        parsed.Host.ShouldBe("localhost");
+        parsed.Password.ShouldBe("hoclieu");
+    }
+
+    [Fact]
+    public void WithSslMode_GiaTriKhongHoppLe_Throw()
+    {
+        Should.Throw<ArgumentException>(() =>
+            ConnectionString.WithSslMode("Host=localhost", "BanCao"));
+    }
 }

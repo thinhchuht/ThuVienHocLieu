@@ -168,6 +168,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
             e.HasKey(x => new { x.DocumentId, x.FileId });
             e.HasOne(x => x.Document).WithMany(d => d.Files).HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.File).WithMany().HasForeignKey(x => x.FileId).OnDelete(DeleteBehavior.Cascade);
+            // Filter khớp với Document (EF10622): tài liệu xóa mềm → file cũng ẩn;
+            // luồng restore/admin dùng IgnoreQueryFilters nên thấy đầy đủ.
+            e.HasQueryFilter(x => !x.Document.IsDeleted);
         });
 
         b.Entity<DocumentTag>(e =>
@@ -175,6 +178,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
             e.HasKey(x => new { x.DocumentId, x.TagId });
             e.HasOne(x => x.Document).WithMany(d => d.Tags).HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Tag).WithMany().HasForeignKey(x => x.TagId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.Document.IsDeleted);
         });
 
         // ===== quizzes =====
@@ -209,6 +213,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
         b.Entity<QuestionGroup>(e =>
         {
             e.HasOne(x => x.Quiz).WithMany(q => q.Groups).HasForeignKey(x => x.QuizId).OnDelete(DeleteBehavior.Cascade);
+            // Filter khớp với Quiz (EF10622): quiz xóa mềm → nhóm câu cũng ẩn.
+            e.HasQueryFilter(x => !x.Quiz.IsDeleted);
         });
 
         b.Entity<Question>(e =>
@@ -217,11 +223,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
             e.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.Points).HasPrecision(5, 2);
             e.Property(x => x.AcceptedAnswers).IsRequired(false);
+            e.HasQueryFilter(x => !x.Quiz.IsDeleted);
         });
 
         b.Entity<QuestionOption>(e =>
         {
             e.HasOne(x => x.Question).WithMany(q => q.Options).HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.Question.Quiz.IsDeleted);
         });
 
         // ===== classes =====
@@ -256,6 +264,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
             e.HasOne(x => x.Quiz).WithMany().HasForeignKey(x => x.QuizId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Creator).WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(x => !x.Quiz.IsDeleted);
         });
 
         // ===== attempts =====
@@ -271,6 +280,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
             e.HasOne(x => x.Quiz).WithMany().HasForeignKey(x => x.QuizId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Assignment).WithMany().HasForeignKey(x => x.AssignmentId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.Quiz.IsDeleted);
         });
 
         b.Entity<AttemptAnswer>(e =>
@@ -279,6 +289,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider t
             e.Property(x => x.PointsAwarded).HasPrecision(5, 2);
             e.HasOne(x => x.Attempt).WithMany(a => a.Answers).HasForeignKey(x => x.AttemptId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Question).WithMany().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.Attempt.Quiz.IsDeleted);
         });
 
         // ===== khác =====

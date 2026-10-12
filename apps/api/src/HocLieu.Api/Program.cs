@@ -70,6 +70,13 @@ if (string.IsNullOrWhiteSpace(connectionString))
     Environment.Exit(1);
 }
 
+// SSL: mặc định Npgsql là Prefer (thử SSL trước, rớt về plain nếu server
+// không có) — vừa chạy Render, vừa chạy DB dev local không SSL.
+// Chỉ ép khi cần: đặt Db__SslMode=Require trong Environment.
+var sslMode = config["Db__SslMode"];
+if (!string.IsNullOrWhiteSpace(sslMode))
+    connectionString = ConnectionString.WithSslMode(connectionString, sslMode);
+
 // ===== Data =====
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
 builder.Services.AddMemoryCache();

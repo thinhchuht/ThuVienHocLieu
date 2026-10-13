@@ -11,7 +11,9 @@ import type {
 /** Trích body ProblemDetails từ `error` của openapi-fetch (body JSON đã parse). */
 export function apiErrorBody(error: unknown): ApiError | undefined {
   const e = error as { data?: ApiError } | ApiError | undefined;
-  if (!e) return undefined;
+  // LB Render trả body HTML (chuỗi) khi service 502/503 do sleep — `in` trên
+  // chuỗi throw TypeError, phải guard typeof trước.
+  if (!e || typeof e !== "object") return undefined;
   // openapi-fetch: `error` chính là body đã parse; một số chỗ truyền cả result { data }.
   if ("title" in e || "errors" in e) return e as ApiError;
   return e.data;
@@ -20,6 +22,20 @@ export function apiErrorBody(error: unknown): ApiError | undefined {
 /** Trích lỗi ProblemDetails (title tiếng Việt) từ response của openapi-fetch. */
 export function apiErrorTitle(error: unknown, fallback: string): string {
   return apiErrorBody(error)?.title ?? fallback;
+}
+
+/**
+ * Render LB trả 502/503/504 kèm body HTML khi service free tier đang sleep /
+ * chưa kịp wake — không parse được ProblemDetails. Báo rõ để người dùng thử lại.
+ */
+function serverDownTitle(
+  response: Response | undefined,
+  fallback: string,
+): string {
+  const status = response?.status;
+  if (status === 502 || status === 503 || status === 504)
+    return "Máy chủ chưa phản hồi (có thể đang khởi động lại). Vui lòng thử lại sau ít giây.";
+  return fallback;
 }
 
 /**
@@ -56,12 +72,17 @@ export function useLogin() {
       idToken: string;
       inviteToken?: string;
     }): Promise<Me> => {
-      const { data, error } = await api.POST("/api/auth/google", {
+      const { data, error, response } = await api.POST("/api/auth/google", {
         // OpenAPI build này chưa xuất requestBody → type body là undefined, cast bỏ qua
         body: (inviteToken ? { idToken, inviteToken } : { idToken }) as never,
       });
       if (error || !data)
-        throw new Error(apiErrorTitle(error, "Đăng nhập không thành công"));
+        throw new Error(
+          serverDownTitle(
+            response,
+            apiErrorTitle(error, "Đăng nhập không thành công"),
+          ),
+        );
       return data as unknown as Me;
     },
     onSuccess: (me) => {
@@ -81,11 +102,16 @@ export function useLoginPassword() {
       email: string;
       password: string;
     }): Promise<Me> => {
-      const { data, error } = await api.POST("/api/auth/login", {
+      const { data, error, response } = await api.POST("/api/auth/login", {
         body: { email, password } as never,
       });
       if (error || !data)
-        throw new Error(apiErrorTitle(error, "Đăng nhập không thành công"));
+        throw new Error(
+          serverDownTitle(
+            response,
+            apiErrorTitle(error, "Đăng nhập không thành công"),
+          ),
+        );
       return data as unknown as Me;
     },
     onSuccess: (me) => {
@@ -98,12 +124,17 @@ export function useUpdateMe() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: UpdateMeRequest): Promise<Me> => {
-      const { data, error } = await api.PUT("/api/me", {
+      const { data, error, response } = await api.PUT("/api/me", {
         // OpenAPI build này chưa xuất requestBody → cast (như useLogin)
         body: body as never,
       });
       if (error || !data)
-        throw new Error(apiErrorTitle(error, "Không cập nhật được thông tin"));
+        throw new Error(
+          serverDownTitle(
+            response,
+            apiErrorTitle(error, "Không cập nhật được thông tin"),
+          ),
+        );
       return data as unknown as Me;
     },
     onSuccess: (me) => {
@@ -116,11 +147,16 @@ export function useUpdateMe() {
 export function useSetPassword() {
   return useMutation({
     mutationFn: async (newPassword: string) => {
-      const { error } = await api.PUT("/api/me/password", {
+      const { error, response } = await api.PUT("/api/me/password", {
         body: { newPassword } as never,
       });
       if (error)
-        throw new Error(apiErrorTitle(error, "Không đặt được mật khẩu"));
+        throw new Error(
+          serverDownTitle(
+            response,
+            apiErrorTitle(error, "Không đặt được mật khẩu"),
+          ),
+        );
     },
   });
 }
@@ -129,9 +165,14 @@ export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { error } = await api.POST("/api/auth/logout");
+      const { error, response } = await api.POST("/api/auth/logout");
       if (error)
-        throw new Error(apiErrorTitle(error, "Đăng xuất không thành công"));
+        throw new Error(
+          serverDownTitle(
+            response,
+            apiErrorTitle(error, "Đăng xuất không thành công"),
+          ),
+        );
     },
     onSuccess: () => {
       qc.setQueryData(["me"], null);
@@ -144,8 +185,14 @@ export function useLogoutAll() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { error } = await api.POST("/api/auth/logout-all");
-      if (error) throw new Error(apiErrorTitle(error, "Không thực hiện được"));
+      const { error, response } = await api.POST("/api/auth/logout-all");
+      if (error)
+        throw new Error(
+          serverDownTitle(
+            response,
+            apiErrorTitle(error, "Không thực hiện được"),
+          ),
+        );
     },
     onSuccess: () => {
       qc.setQueryData(["me"], null);

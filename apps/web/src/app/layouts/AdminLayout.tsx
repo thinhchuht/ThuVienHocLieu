@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { cn } from "@/lib/utils";
 import { PageLoading } from "@/app/PageLoading";
 import { SessionHeader } from "@/components/common/SessionHeader";
+import { MobileNav } from "@/components/common/MobileNav";
 import { useMe } from "@/features/auth/api";
 
 const nav = [
@@ -58,7 +59,15 @@ export function AdminLayout() {
         </nav>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <SessionHeader />
+        <SessionHeader
+          left={
+            <MobileNav
+              title="Học Liệu · Quản trị"
+              homeTo="/admin"
+              items={nav}
+            />
+          }
+        />
         <main className="min-w-0 flex-1 p-4 md:p-6">
           <Suspense fallback={<PageLoading />}>
             <Outlet />

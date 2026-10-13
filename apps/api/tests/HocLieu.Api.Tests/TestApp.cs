@@ -99,8 +99,11 @@ public sealed class TestApp : IAsyncLifetime
         {
             ["Storage:LocalRoot"] = _storageRoot,
         });
-        // chạm app một lần để chạy migrate + seed (WebApplicationFactory khởi tạo lazy)
+        // chạm app một lần để khởi tạo host (WebApplicationFactory lazy)
         await _factory.CreateDefaultClient().GetAsync("/health/live");
+        // Migrate + seed giờ chạy nền (StartupMigrator) — chờ xong để giữ ngữ
+        // cảnh "app tự migrate + seed khi khởi động" trước khi test phát request.
+        await _factory.Services.GetRequiredService<StartupMigrator>().WaitUntilCompletedAsync();
     }
 
     public async Task DisposeAsync()

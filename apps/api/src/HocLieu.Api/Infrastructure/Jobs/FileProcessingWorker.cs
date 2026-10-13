@@ -18,6 +18,7 @@ public sealed class FileProcessingWorker(
     FileProcessingQueue queue,
     IDocumentConverter converter,
     IFileStorage storage,
+    StartupMigrator migrator,
     ILogger<FileProcessingWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan[] RetryDelays =
@@ -30,13 +31,18 @@ public sealed class FileProcessingWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Port mở trước migrate (StartupMigrator) → bảng có thể chưa tồn tại
+        // khi worker khởi động. Chờ migrate xong (no-op nếu MigrateOnStartup=false
+        // hoặc đã xong) để requeue không rơi vào lỗi thiếu bảng.
         try
         {
+            await migrator.WaitUntilCompletedAsync(stoppingToken);
             await RequeueStaleAsync(stoppingToken);
         }
         catch (Exception ex)
         {
-            // DB chưa sẵn sàng (migrate chạy sau?) — không crash host, file sẽ được xử lý khi enqueue lại
+            // DB vẫn chưa sẵn sàng sau khi chờ — không crash host, file sẽ được
+            // xử lý khi enqueue lại ở lượt sau.
             logger.LogError(ex, "Không khởi tạo hàng đợi file; bỏ qua đến lần enqueue kế tiếp");
         }
 

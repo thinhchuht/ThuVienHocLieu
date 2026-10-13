@@ -84,6 +84,13 @@ builder.Services.AddMemoryCache();
 // Keys DataProtection lưu PostgreSQL → cookie không mất hiệu lực khi restart container (spec §3.4)
 builder.Services.AddDataProtection().PersistKeysToDbContext<AppDbContext>();
 
+// Migrate + seed chạy nền SAU khi port mở — DB Render free chậm/lạnh không
+// chặn deploy (chi tiết trong StartupMigrator). Đăng ký singleton cụ thể +
+// trỏ IHostedService vào cùng instance (FileProcessingWorker resolve thẳng
+// type cụ thể để chờ migrate xong trước khi requeue).
+builder.Services.AddSingleton<StartupMigrator>();
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<StartupMigrator>());
+
 // ===== Auth =====
 builder.Services.AddHttpContextAccessor();
 // Scoped: dùng AppDbContext; OnValidatePrincipal resolve qua RequestServices
@@ -243,30 +250,9 @@ builder.Services.AddHttpClient("gotenberg", c =>
 var app = builder.Build();
 
 // ===== Migrate + seed (1 instance, spec §15.2) =====
-if (config.GetValue("Db:MigrateOnStartup", false))
-{
-    // Trên Render: Postgres provision (đặc biệt free) có thể chưa xong khi api
-    // khởi động → connection string rỗng/lỗi kết nối. Thử lại 15s × 20 lần
-    // (~5 phút); lần cuối vẫn lỗi thì throw → Render redeploy.
-    const int maxAttempts = 20;
-    for (var attempt = 1; ; attempt++)
-    {
-        try
-        {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Database.MigrateAsync();
-            await DbSeeder.SeedAsync(db);
-            Log.Information("Đã migrate + seed database");
-            break;
-        }
-        catch (Exception ex) when (attempt < maxAttempts)
-        {
-            Log.Warning(ex, "Migrate + seed thử {Attempt}/{Max} chưa được, thử lại sau 15 giây", attempt, maxAttempts);
-            await Task.Delay(TimeSpan.FromSeconds(15));
-        }
-    }
-}
+// Chạy nền trong <see cref="StartupMigrator"/> (hosted service đăng ký ở phần
+// Data) SAU khi Kestrel đã mở port → DB Render free chậm/lạnh không chặn
+// deploy. Test integration chờ <c>StartupMigrator.WaitUntilCompletedAsync</c>.
 
 if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();

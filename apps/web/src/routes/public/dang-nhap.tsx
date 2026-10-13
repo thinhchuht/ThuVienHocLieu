@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { GoogleLogin } from "@react-oauth/google";
-import type { CredentialResponse } from "@react-oauth/google";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { useLogin, useLoginPassword, useMe } from "@/features/auth/api";
 import { isInAppBrowser } from "@/lib/inapp-browser";
+import { GoogleLoginButton } from "@/components/common/GoogleLoginButton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -85,8 +84,8 @@ export function DangNhapPage() {
           <>
             {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
               <div className="flex flex-col gap-3">
-                <GoogleLogin
-                  onSuccess={(r: CredentialResponse) =>
+                <GoogleLoginButton
+                  onSuccess={(r) =>
                     r.credential
                       ? onCredential(r.credential)
                       : setError("Google không phản hồi.")
@@ -96,7 +95,6 @@ export function DangNhapPage() {
                       "Google không phản hồi. Thử lại hoặc dùng trình duyệt khác.",
                     )
                   }
-                  width={300}
                 />
                 {login.isPending && (
                   <p className="flex items-center justify-center gap-2 text-sm text-muted">
